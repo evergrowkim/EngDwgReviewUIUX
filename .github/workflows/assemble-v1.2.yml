@@ -1,0 +1,67 @@
+name: Assemble v1.2 artifacts
+
+on:
+  push:
+    paths:
+      - 'staging/READY'
+
+permissions:
+  contents: write
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Reconstruct source files
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat staging/guide.*.b64 | base64 -d > doAZ_Drawing_Review_Claude_Code_Guide_v1.2.md
+          cat staging/lab.*.b64 | base64 -d > doAZ_Drawing_Review_UX_Lab_v1.2.html
+          test -s doAZ_Drawing_Review_Claude_Code_Guide_v1.2.md
+          test -s doAZ_Drawing_Review_UX_Lab_v1.2.html
+      - name: Build package
+        shell: bash
+        run: |
+          set -euo pipefail
+          zip -j doAZ_Drawing_Review_UX_v1.2_Package.zip README.md doAZ_Drawing_Review_Claude_Code_Guide_v1.2.md doAZ_Drawing_Review_UX_Lab_v1.2.html
+      - name: Generate HTML preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+          cat > /tmp/shot.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          import { pathToFileURL } from 'url';
+          import path from 'path';
+          const browser = await chromium.launch({headless:true});
+          const page = await browser.newPage({viewport:{width:1600,height:1000}, deviceScaleFactor:1});
+          await page.goto(pathToFileURL(path.resolve('doAZ_Drawing_Review_UX_Lab_v1.2.html')).href);
+          await page.waitForTimeout(800);
+          await page.screenshot({path:'doAZ_Drawing_Review_UX_Lab_v1.2_preview.png', fullPage:true});
+          await browser.close();
+          EOF
+          node /tmp/shot.mjs
+      - name: Verify artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s doAZ_Drawing_Review_UX_Lab_v1.2_preview.png
+          test -s doAZ_Drawing_Review_UX_v1.2_Package.zip
+          sha256sum doAZ_Drawing_Review_Claude_Code_Guide_v1.2.md doAZ_Drawing_Review_UX_Lab_v1.2.html doAZ_Drawing_Review_UX_Lab_v1.2_preview.png doAZ_Drawing_Review_UX_v1.2_Package.zip
+      - name: Commit assembled artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf staging package.json package-lock.json node_modules
+          rm -f .github/workflows/assemble-v1.2.yml
+          git config user.name 'evergrowkim'
+          git config user.email '134181359+evergrowkim@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat: upgrade drawing review UI/UX prototype to v1.2'
+          git push origin HEAD:main
