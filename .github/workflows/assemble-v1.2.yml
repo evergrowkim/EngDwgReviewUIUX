@@ -3,7 +3,7 @@ name: Assemble v1.2 artifacts
 on:
   push:
     paths:
-      - 'staging/READY'
+      - 'packed/READY'
 
 permissions:
   contents: write
@@ -19,10 +19,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat staging/guide.*.b64 | base64 -d > doAZ_Drawing_Review_Claude_Code_Guide_v1.2.md
-          cat staging/lab8.*.b64 | base64 -d > doAZ_Drawing_Review_UX_Lab_v1.2.html
-          test -s doAZ_Drawing_Review_Claude_Code_Guide_v1.2.md
-          test -s doAZ_Drawing_Review_UX_Lab_v1.2.html
+          cat packed/guidegz.*.b64 | base64 -d | gzip -d > doAZ_Drawing_Review_Claude_Code_Guide_v1.2.md
+          cat packed/labgz.*.b64 | base64 -d | gzip -d > doAZ_Drawing_Review_UX_Lab_v1.2.html
           test "$(sha256sum doAZ_Drawing_Review_Claude_Code_Guide_v1.2.md | cut -d' ' -f1)" = "65a67883cd34b3e467fe09465c6854db7f0db8994408a3dafe3abff3094bfb02"
           test "$(sha256sum doAZ_Drawing_Review_UX_Lab_v1.2.html | cut -d' ' -f1)" = "38459122b8b7878db6a5380d3b1b3cd3ff7a943c27c9a296e85b6f027885cd90"
       - name: Build package
@@ -60,7 +58,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf staging package.json package-lock.json node_modules
+          rm -rf staging packed package.json package-lock.json node_modules
           rm -f .github/workflows/assemble-v1.2.yml
           git config user.name 'evergrowkim'
           git config user.email '134181359+evergrowkim@users.noreply.github.com'
